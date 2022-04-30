@@ -40,6 +40,26 @@ module Hiki
 
       response.body = [] if request.head?
 
+      #inuzuka 以下17行追加
+      if env["SERVER_NAME"]!="localhost" and 
+         env["REQUEST_METHOD"]=="GET" and  
+         not response.body[0].match(/キーワード:\[<a href.*>(限定)?公開<\/a>\]/) and
+         not response.body[0].match(/<textarea.*?>([^<]*\n)?公開(\n|[^<]*<\/textarea>)/) and
+         not response.body[0].match(/Wait or <a href=.*?>Click here!<\/a>/)
+         if response.body[0].match(/<textarea/)
+           msg = "このページを編集することはできません m(__)m　"
+         else
+           msg = "指定したページを開くことはできません m(__)m　"
+         end
+         str =  %Q|<html><head><meta charset="utf-8">|
+         str =  %Q|<link rel="stylesheet" type="text/css" href="theme/hiki/hiki.css">|
+         str << %Q|</head><body class="hikokai">|
+         str << %Q|#{msg}<input type="button" value="戻る" onclick="history.back()">|
+         str << %Q|</body></html>|
+         response.header["content-Length"] = str.bytesize.to_s
+         response.body = [str]
+      end
+      
       response.finish
     end
   end

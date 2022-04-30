@@ -7,6 +7,7 @@ require "hiki/aliaswiki"
 require "hiki/formatter"
 require "uri"
 
+
 module Hiki
   module Formatter
     class Default < Base
@@ -26,13 +27,30 @@ module Hiki
         get_auto_links if @conf.auto_link
       end
 
-      def to_s
-        s = @html
-        s = replace_inline_image(s)
-        s = replace_link(s)
-        s = replace_auto_link(s) if @conf.auto_link
-        s = replace_heading(s)
-        s = replace_plugin(s) if @conf.use_plugin
+      def analize(s,num)
+      #"C:\hiki\keika1.txt"などを保存する.
+        res = s.scan(/【start】.*?【end】/m)
+        if res.size>0
+          str = res.join("\n\n")
+          File.write("C:\hiki\keika#{num.to_s}.txt",str)
+        end
+      end
+
+      def to_s #inuzuka ※行を付加,※※行を移動,analize付加.
+        frg = nil #動作解析する.=> :do                   
+        s = @html                                      ;analize(s,1)  if frg == :do
+        s = replace_local_link( s, 1 )                 ;analize(s,2)  if frg == :do #※
+        s = replace_link(s)                            ;analize(s,3)  if frg == :do
+        s = replace_auto_link(s) if @conf.auto_link    ;analize(s,4)  if frg == :do
+        s = replace_heading(s)                         ;analize(s,5)  if frg == :do
+        s = replace_plugin(s) if @conf.use_plugin      ;analize(s,6)  if frg == :do
+        s = replace_local_link( s, 2 ,frg)             ;analize(s,7)  if frg == :do #※
+        s = make_to_top_page( s )                      ;analize(s,8)  if frg == :do #※
+        s = replace_local_image_link( s ,frg)          ;analize(s,9)  if frg == :do #※
+        s = replace_inline_image(s)                    ;analize(s,10) if frg == :do #※※
+        s = replace_bbs_div(s)                         ;analize(s,11) if frg == :do #※
+        s = replace_comment_span(s)                    ;analize(s,12) if frg == :do #※
+        s = enable_indent_pre(s)                       ;analize(s,12) if frg == :do #※
         @html_converted = s
         s
       end
@@ -43,6 +61,12 @@ module Hiki
 
       HEADING_RE = %r!<h(\d)>.*<a name="l\d+">.*?</a>(.*?)</h\1>!
       TAG_RE = %r!(<.+?>)!
+
+      unless defined? SIRYO
+        eval(File.open("hikiconf.rb"){|f| f.read })
+        SIRYO = @siryo_path
+        IMAGE = @image_path
+      end
 
       def toc
         s = "<ul>\n"
@@ -70,9 +94,163 @@ module Hiki
 
       private
 
+      def replace_local_link( text, x ,frg=:no)   # 2020.5.24 inuzuka
+        if x==1  # ローカルリンクを待避する。
+          text.gsub( /<a href=\"((\\\\|[a-z]:|Mydoc|Documents|siryo|image).+?)\">(.*?)<\/a>/i ) do |str|
+              "<escX>#{$1}<escY>#{$3}<escZ>"
+          end
+        elsif x==2  #自動的にローカルリンクを作成し、また、待避したローカルリンクを復元する。
+          re1 = /<escX>(.+?)<escY>(.+?)<escZ>/
+          re2 = /&lt;(image.+?)&gt;/
+          re3 = /&lt;(siryo.+?)&gt;/
+          re4 = /<img src\="(\\\\)?([^<^\]]+?)(?=[\s　]{2,}|$|<|\])/
+          re5 = /\\\\([^<^\]]+?)(?=[\s　]{2,}|$|<|\])/
+          re6 = /(dl)?[a-zA-Z]:\\.+?(?=[\s　]{2,}|$|<|\])/
+          re  = Regexp.union(re1,re2,re3,re4,re5,re6) 
+          text.gsub(re) do |str|
+            if $&[0,9]=="&lt;image"     #<image/ >はこの段階はスルーする.
+              $&
+            elsif $&[0,8]=="<img src" 
+              img  = $&
+              path = img.match(/src\="([^"]*?)"/)[1]
+              mdified_path = modify_alias(path)
+              mdified_disp = File.basename(path)
+              %Q|<img src="#{uri_encode(mdified_path)}" alt="#{mdified_disp}">|
+            else
+              if $&[0,6]=='<escX>'
+                path,disp = $1,$2
+                disp = disp
+                path = modify_alias(path,frg)
+              elsif $&[0,9]=='&lt;siryo' or $&[0,11]=='&lt;dlsiryo'
+                str  = $4
+                disp = modify_disp(str  ,frg)
+                path = modify_alias(str ,frg)
+              else
+                str = $&
+                disp = modify_disp(str  ,frg)
+                path = modify_alias(str ,frg) 
+              end
+              %Q|<a href="#{uri_encode(path)}" class="mylink">#{disp}</a>|
+            end
+          end
+        end
+      end
+      
+      def modify_disp(str,frg=:no)  #2020.7.24 inuzuka
+        if frg == :do
+          #p "modify_disp"
+          #p "0 => " + str
+        end
+        s = str.sub(/^[\\\/]*(Mydoc|Documents)/i,'Mydoc')           ;p "1 => "+s if frg ==:do  
+        s.sub!(/^[\\\/]*siryo(?=[\\\/]|$)/i,SIRYO)                  ;p "2 => "+s if frg ==:do 
+        s.sub!(/^[\\\/]*([a-zA-Z]:[\\\/])/,'\1')                    ;p "4 => "+s if frg ==:do  
+        s.gsub!(/^[\\\/]*([^?:\.]+?)(?=[\\\/]|$)/,'&#165;&#165;\1') ;p "5 => "+s if frg ==:do
+        s.gsub!(/[\\\/]/,'&#165;')                                  ;p "6 => "+s if frg ==:do
+        s 
+      end
+
+      def modify_alias(str,frg=:no)  #2020.7.24 inuzuka
+        if frg == :do
+          #p "modify_alias" 
+          #p "0 => " + str
+        end 
+        s = str
+        #@old_user_documents.each_with_index{|path,i|
+        #  s.sub!(/#{path.gsub(/\\/,"\\\\\\\\")}/i,@backup_path[i])
+        #}
+        s.sub!(/^C:.Users.*Documents/i,'Mydoc')                  ;p "1 => "+s if frg == :do 
+        s.sub!(/^[\\\/]*(Mydoc|Documents)(?=[\\\/]|$)/i,'\1')    ;p "3 => "+s if frg == :do 
+        s.sub!(/^[\\\/]*siryo(?=[\\\/]|$)/i, SIRYO)              ;p "4 => "+s if frg == :do 
+        s.sub!(/^[\\\/]*image\**(?=[\\\/]|$)/i, IMAGE)           ;p "5 => "+s if frg == :do 
+        s.sub!(/^[\\\/]*([a-zA-Z]:[\\\/])/i,'dl.cgi?\1')         ;p "7 => "+s if frg == :do 
+        s.sub!(/^[\/\\]*([^?:\.]+?)(?=[\\\/]|$)/i,'dl.cgi?//\1') ;p "8 => "+s if frg == :do 
+        s.gsub!(/\\/,'/')                                        ;p "9 => "+s if frg == :do
+        s
+      end
+
+      def uri_encode(str)
+        #CGI.escapeでは半角スペースが '+' に変換される。
+        #URI.escapeでは半角スペースが '%20' に変換される。
+        # '+'だとIEではリンク切れになる。
+        CGI.escape(str).gsub(/%3F/,'?').gsub(/%3A/,':').gsub(/%5C/,'/').gsub(/%2F/,'/').gsub('+','%20')
+        #URI.escape(str).gsub(/%3F/,'?').gsub(/%3A/,':').gsub(/%5C/,'/').gsub(/%2F/,'/')
+      end
+
+      def uri_decode(str)
+        CGI.unescape(str)
+      end
+
+      def make_to_top_page( text )   # 2007.12.26 inuzuka
+        text.gsub( %r!<h\d?>(|<.*?>)<a name=! ) do |str|
+            %Q|<p class="top-link"><a href="#top">TOP</a></p>#{$&}|
+        end
+      end
+  
+      def replace_local_image_link(text,frg=:no)
+      #inuzuka 「 <image/xxxx.jpg> 」imageフォルダのxxxx.jpgを表示
+      #        「 <image***/xxxx.jpg> 」imageの後の"*"で表示サイズを変更.
+      #        「 <image***//Mydoc/2020/07/xxxx.jpg> 」 "//"で区切ることで任意のフォルダを指定可能.
+        text.gsub(/&lt;(image(\**\/+)([^$]*?\.(jpg|jpeg|gif|png|bmp)))&gt;/i) do |str|
+          s = $2.delete("*").size==1 ? $1 : $3
+          disp = modify_disp(s)
+          path = uri_encode(modify_alias( s ,frg))
+          size = case $2.delete("/").size
+                 when 0 ; "auto"
+                 when 1 ;   "50"
+                 when 2 ;  "100"
+                 when 3 ;  "150"
+                 when 4 ;  "200"
+                 when 5 ;  "300"
+                 when 6 ;  "400"
+                 when 7 ;  "500"
+                 when 8 ;  "600"
+                 when 9 ;  "800"
+                 when 10; "1000"
+                 end
+          %Q|<a href="#{path}"><img src="/#{path}" width="#{size}" alt="#{disp}"></a>|
+        end
+      end
+
+      def enable_indent_pre(text) 
+      #inuzuka 引用表記にインデントを設定する「 **<<<・・・>>> 」の記法を付加
+        #text.gsub(%r|.*?<ul>\n(<li><ul>\n)*<li>&lt;&lt;&lt;</li>\n(</ul></li>\n)*</ul>[\s\S]*?&gt;&gt;&gt;</p>|) do |ans|
+        #  disp_str = ans.match(%r|[\s\S]*</ul>([\s\S]*?)&gt;&gt;&gt;</p>|)[1].gsub("<p>","").gsub("</p>","\n")
+        #  indent   = ans.scan(%r|<li><ul>|).size
+        #  "<pre class=\"pre#{indent+1}\">#{disp_str}</pre>"
+        #end
+        lt = "<li>&lt;&lt;&lt;</li>\n"
+        gt = "&gt;&gt;&gt;</p>"
+        middle_end_ul = "</ul></li>\n"
+        end_ul = "</ul>\n"
+        text.gsub!(%r|^(<ul>\n([\s\S]*?)#{lt}((#{middle_end_ul})*#{end_ul}))([\s\S]*?)#{gt}|) do |str|
+          part1 = $1
+          part2 = $2
+          part3 = $3
+          part5 = $5
+          if part2.gsub(%r!<ul>|<li>|\n!,"").size > 0
+            itemizing = part1.sub(%r|#{lt}|,"")
+          else
+            itemizing = ""
+          end
+          level = part3.scan(%r|</ul>|).size
+          if level > 0
+            pre_tag = "<pre class=\"pre#{level}\">\n"
+          else
+            pre_tag = "<pre>"
+          end
+          pre_content = part5.gsub("<p>","").gsub("</p>","\n")
+          itemizing + pre_tag + pre_content + "</pre>"
+        end
+        text
+      end
+
       def replace_inline_image(text)
-        text.gsub(/<a href="([^"]+)\.(jpg|jpeg|gif|png)">(.+?)<\/a>/i) do |str|
-          %Q|<img src="#{$1}.#{$2}" alt="#{$3}">|
+        text.gsub(/<a href="([^"]+\.(jpg|jpeg|gif|png|bmp))".*?>(.+?)<\/a>/i) do |str|
+          if $3[0,9]=="<img src="
+            str
+          else
+            %Q|<img src="#{$1}" alt="#{$3.sub(/.*&#165;/,"")}">|
+          end
         end
       end
 
@@ -116,7 +294,7 @@ module Hiki
         ret.join
       end
 
-      URI_RE = /\A#{URI.regexp(%w( http https ftp file mailto ))}\z/
+      URI_RE = /\A#{URI::DEFAULT_PARSER.make_regexp(%w( http https ftp file mailto ))}\z/ 
 
       def replace_link(text)
         text.gsub(%r|<a href="(.+?)">(.+?)</a>|) do |str|
@@ -126,7 +304,8 @@ module Hiki
           else
             u = unescape_html(u)
             u = @aliaswiki.aliaswiki_names.key(u) || u # alias wiki
-            if /(.*)(#l\d+)\z/ =~ u
+            #if /(.*)(#l\d+)\z/ =~ u
+            if /(.*)(#(\d|\w|[^\x01-\x7e])+)\z/ =~ u    #inuzuka 2020.7.20, 全角文字にも対応
               u, anchor = $1, $2
             else
               anchor = ""
@@ -227,6 +406,16 @@ module Hiki
         end
       end
 
+      def replace_bbs_div(s)
+        s.gsub(/\$\${/, '<div class="bbs">').gsub(/\$\$}/, '</div>')
+      end
+
+      def replace_comment_span(s)
+        s.gsub(/&lt;span class="blue"&gt;(.*?)&lt;\/span&gt;/) do |w|
+          '<span class="blue">'+$1+'</span>'
+        end
+      end
+
       def get_auto_links
         pages = {}
         @db.pages.each do |p|
@@ -249,6 +438,7 @@ module Hiki
           gsub(/</, "&lt;").
           gsub(/>/, "&gt;")
       end
+
     end
   end
 end

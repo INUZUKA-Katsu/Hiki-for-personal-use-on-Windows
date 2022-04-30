@@ -57,15 +57,41 @@ module Hiki
           keyword  = info[:keyword]
           title    = info[:title]
           status   = ""
+          keyNum   = 0            # inuzuka
 
           keys.each do |key|
+            keyNum    += 1        # inuzuka
             quoted_key = Regexp.quote(key)
             if keyword and keyword.join("\n").index(/#{quoted_key}/i)
               status << @conf.msg_match_keyword.gsub(/\]/, " <strong>#{h(key)}</strong>]")
             elsif title and title.index(/#{quoted_key}/i)
               status << @conf.msg_match_title.gsub(/\]/, " <strong>#{h(key)}</strong>]")
-            elsif load(page).index(/^.*#{quoted_key}.*$/i)
-              status << "[" + h($&).gsub(/#{Regexp.quote(h(key))}/i) { "<strong>#{$&}</strong>"} + "]"
+            #elsif load(page).index(/^.*#{quoted_key}.*$/i)
+            #  status << "[" + h($&).gsub(/#{Regexp.quote(h(key))}/i) { "<strong>#{$&}</strong>"} + "]"
+            # **************　上の２行を以下の15行に差し替え  *************************************
+            # オリジナルでは、ページ内で最初にヒットした箇所だけを結果表示していたのを、
+            # すべてのヒット箇所を結果表示することとし（ scan の部分）、
+            # ヒット箇所の各末尾に、「#1-1,#1-2 ･･･」という形式の一連番号をつけることとした。
+            # （+ " ##{$keyNum}-#{x}]<br>" の部分）一連番号は、最終的には該当箇所へのリンクになる。
+            # また、結果表示を見やすくするため、[[見出し|URL]]の部分については、原則として、
+            # 見出しだけを結果表示することとし、検索語がURLに含まれている場合だけ、URLを含む
+            # 全体を結果表示するようにした。
+            elsif load_page = load( page ) and load_page.index(/#{quoted_key}/i)
+               status_str=""
+               x=1
+               load_page.scan(/^.*#{quoted_key}.*$/i) do |str|
+                 status_str += '[' + h(str).gsub(/\[\[(.*?)(|\|.*?)\]\]/) do
+                   if $2.include?("#{quoted_key}")
+                     $&
+                   else
+                     $1
+                   end
+                 end.gsub(/#{Regexp::quote(h(key))}/i) { "<strong>#{$&}</strong>"} +
+                 " ##{keyNum}-#{x}]<br>"
+                 x+=1
+               end
+               status << status_str
+            # ********************************************************************************
             else
               status = nil
               break

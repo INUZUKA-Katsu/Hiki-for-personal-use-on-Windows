@@ -653,3 +653,156 @@ div.hello {
 	font-size: 80%;
 	margin-top: 0px;
 }
+
+/**************************************************************/
+/**************************************************************/
+/********************** 以下inuzukaが付加 **********************/
+/**************************************************************/
+/**************************************************************/
+
+em {
+	font-size:120%;
+}
+strong {
+	font-size:140%;
+}
+div.day h2 {
+     line-height:1em;
+     margin-left: 0;
+     padding-left: 0;	
+     padding-top: 10px;
+     color: #2c2c2f;
+     background: #f0f0ff;
+     border-bottom: solid 2px #48c;
+}
+div.body h3 {
+	line-height:0.9em;
+	letter-spacing:0px;
+}
+div.body h4 {
+	font-size: 125%;
+	border-left: none;
+	padding: 0.2em 0.3em 0 0.5em;
+	line-height:1.3em;
+	letter-spacing:-2px;
+}
+div.body h5 {
+      font-size: 125%!important;
+      font-weight:bold!important;
+      padding-left:0!important;
+      color:royalblue!important;
+}
+.top-link {
+	font-size:80%;
+	float: right;
+	margin-top:1em;
+	margin-bottom:0em;
+	padding-top:0;
+	padding-bottom:0;
+}
+div.body {
+	letter-spacing:1px;
+}
+div.body blockquote p {
+	line-height: 160%;
+}
+div.main li  {
+	line-height: 200%;
+	font-weight:bold;
+}
+div.main li li  {
+	line-height: 140%;
+	font-weight:normal;
+}
+div.body li {
+	line-height: 140%;
+	font-weight:normal;
+}
+div.body img {
+	vertical-align: top;
+}
+del {
+	color:orange;
+}
+div.body pre {
+	font-size: 100%;
+	line-height: 140%;
+}
+div.form p {
+	padding-left: 0px;
+}
+div.form textarea {
+	display:block;
+}
+form.update textarea {
+        margin-left: 3em;
+}
+a.p-name {
+	font-size  :  1.3em ;
+	font-weight:  bold;
+	border: solid 1px #ff0000;
+	border-left:solid 2px #ff0000;
+	border-right:solid 2px #ff0000;
+}
+#tip input {
+  position:relative;
+}
+#tip input:hover {
+  background: #deb3ba;
+}
+.explain_button {
+  display: none;
+  position: absolute;
+  bottom: -7em;
+  left: 23em;
+  z-index: 9999;
+  padding: 0.3em 0.5em;
+  color: #FFFFFF;
+  background: #c72439;
+  border-radius: 0.5em;
+}
+.explain_button:after {
+  width: 100%;
+  content: "";
+  display: block;
+  position: absolute;
+  left: 0.5em;
+  top: -8px;
+  border-top:8px solid transparent;
+  border-left:8px solid #c72439;
+}
+#tip input:hover~.explain_button {
+  display: block;
+}
+div.shared-folder {display:inline-block;
+                        *display:inline;
+                        *zoom:1;
+                        text-align:left;
+                        margin-top:10px;
+}
+div.a-col {width:25em;margin-left:50px;}
+div.b-col {width:7em;}
+body.hikokai {text-align:center;margin-top:100px;}
+
+div.section form { margin-left:2em; }
+div.section h5 { margin: 0.3em 0 0.3em 1.6em;
+                     font-weight:normal;
+                     font-size:100%;
+                     color:#4169e1; }
+div.bbs { margin-left:2.5em; }
+div.update {margin-left:-25%;}
+div.textarea textarea {line-height:140%;
+                             font-family:"MS ゴシック",sans-serif;
+                             font-family:"メイリオ",Meiryo,sans-serif;
+                             font-size:110%;
+                             width:90%;
+                             height:19em;}
+h1.edit {margin-top:0;margin-bottom:0;}
+div.main {font-family:"メイリオ",Meiryo,sans-serif;}
+span.blue {color:#4169e1;}
+pre.pre1 {margin-left:5em !important;}
+pre.pre2 {margin-left:8em!important;}
+pre.pre3 {margin-left:11em!important;}
+pre.pre4 {margin-left:14em!important;}
+b {color:#1f5c99;}
+/* ここまでinuzukaが付加 */

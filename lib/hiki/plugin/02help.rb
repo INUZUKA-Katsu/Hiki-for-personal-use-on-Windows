@@ -289,7 +289,8 @@ function set_ttlbr() {
 function set_ptlbr() {
 
   add_ptxt( "[" );
-  add_pbttn( plugin_label, "{{TEXT}}", "{{", "}}" );
+//  add_pbttn( plugin_label, "{{TEXT}}", "{{", "}}" ); 次の１行に差し替え
+  add_pbttn( plugin_label, "{{bbs}}", "\\n{{bbs}}\\n", "" );
   add_ptxt( "][" );
   add_pbttn( br_label, "{{br}}", "{{br}}", "" );
   add_ptxt( "][" );
@@ -357,6 +358,144 @@ END_HELP
   ins_tlbr( ptlbr );
 
 END_HELP
+
+  help << <<END_HELP
+  //inuzuka
+    function open_dialog(target){
+      var elm=document.getElementById("status");
+      if (elm.value==""){
+        elm.value="waiting"
+        var request = new XMLHttpRequest();
+        request.onreadystatechange = function(){
+          if(request.readyState == 4 && request.status == 200){
+            elm.value="";
+            data = JSON.parse(request.response);
+            if(data[0]=="not selected"){
+              //console.log("Canceled!");
+            }else{
+              //console.log(data[0]);
+              setTextBox(data);
+            }
+          }
+        };
+        //console.log("request to ruby in order to file-select-dialog");
+        if(target==1){
+          cgi_script = "/selectfile.cgi?"
+        }else{
+          cgi_script = "/selectfolder.cgi?"
+        }  
+        request.open('GET', cgi_script + (new Date()).getTime() );
+        request.setRequestHeader('Content-Type', 'application/json');
+        request.send(null);
+      }
+    }
+    //Drag and Drop
+    function handleFileSelect(evt){
+      evt.stopPropagation();
+      evt.preventDefault();
+      var files = evt.dataTransfer.files;
+      var file_names=[];
+      for(var i=0;i<files.length;i++){
+        file_names[i]=files[i].name;
+      }
+      json = JSON.stringify(file_names);
+      var post_data = 'droped_files='+json;
+      var request = new XMLHttpRequest();
+      request.onreadystatechange = function () {
+        if (request.readyState == 4 && request.status == 200) {
+          var data = JSON.parse(request.response);
+          setTextBox(data);
+        }
+      }
+      request.open('POST', "/dropedfile.cgi");
+      request.setRequestHeader('content-type' , 'application/x-www-form-urlencoded;charset=UTF-8');
+      request.send(post_data);
+    }
+    function handleDragOver(evt){
+      evt.stopPropagation();
+      evt.preventDefault();
+      evt.dataTransfer.dropEffect = 'copy';
+    }
+    function PageLoad(evt){
+      var DropFrame = document.getElementById('DropFrame')
+      DropFrame.addEventListener('dragover',handleDragOver,false)
+      DropFrame.addEventListener('drop',handleFileSelect,false)
+    }
+    function setTextBox(files){
+      let ary = [];
+      let parent_folder = [];
+      let fullpath;
+      let filename;
+      let isfile=false;
+      let add_title;
+      for(let i=0;i<files.length;i++){
+        fullpath = files[i];
+        let pieces = files[i].split("\\\\")
+        filename = pieces.pop();
+        if(i==0){
+          parent_folder = pieces.pop();
+          if(filename.match(/\\./)){isfile=true;}
+        }
+        if(filename.match(/\\.(jpg|jpeg|png|gif|bmp)/i)){
+          ary[i] = "*<image**//" + fullpath + ">";
+        }else{
+          ary[i] = "*[[" + filename + "|" + fullpath + "]]";
+        }
+      }
+      let str = ary.join("\\n")+("\\n");
+      if(isfile==true){
+        let plugin = document.getElementById("plugin_auto_add_title");
+        if(plugin){
+          let cbox = document.getElementsByName("add_title")[0];
+          if(cbox.checked==true){
+            let ans = window.confirm("自動見出し機能がオンです。見出しを付けますか？\\n\\nOK：親フォルダ名を見出しにする。\\nキャンセル：見出しをつけない。");
+            if(ans==true){
+              add_title=true;
+            }else{
+              add_title=false;
+            }
+          }else{
+              add_title=false;
+          }
+          if(add_title==true){
+            let pt = document.getElementsByName("page_title")[0].value;
+            let d = new Date();
+            let month = ("0" + (d.getMonth()+1)).slice(-2);
+            let day     = ("0" + d.getDate()).slice(-2);
+            let date;
+            if(pt == "第一部会" || pt == "第二部会" || pt == "第三部会"){
+              date = "!!R" + (d.getFullYear()-2018) + "." + month + "." + day + "　";
+            }else{
+              date = "!!" + d.getFullYear() + month + day + "　";
+            }
+            str = date + parent_folder.replace(/^\\d+_/, "") + "\\n"+ str;
+          }
+        }
+      }
+      //console.log(str);
+      var elms = document.getElementsByTagName("textarea")
+      if(elms.length==2){
+        var textarea = elms[0];
+      }else{
+        for(var i=0;i<elms.length;i++){
+          if(elms[i].name=="contents"){
+            var textarea = elms[i];
+          }
+        }
+      }
+      var sentence = textarea.value;
+      var len = sentence.length;
+      var pos = textarea.selectionStart;
+      var before = sentence.substr(0,pos);
+      var after   = sentence.substr(pos,len);
+      var cur     = pos + str.length;
+      sentence  = before + str + after;
+      textarea.value = sentence;
+      //textarea.focus();
+      textarea.setSelectionRange(cur,cur+1);
+    }
+END_HELP
+
 
 if @conf.style == "math"
   help << <<END_HELP

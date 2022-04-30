@@ -2,7 +2,7 @@
 # Copyright (C) 2002-2003 TAKEUCHI Hitoshi <hitoshi@namaraii.com>
 
 def comment_name_label
-  'お名前'
+  '氏名'
 end
 
 def comment_comment_label
@@ -14,5 +14,5 @@ def comment_post_label
 end
 
 def comment_anonymous_label
-  '名無しさん'
+  ''
 end

@@ -71,5 +71,9 @@ module Hiki
     def msg_keyword; "キーワード"; end
     def msg_reference; "参照"; end
     def msg_input_is_spam; "入力されたデータをスパムと判定しました。"; end
+    def msg_fileselect_button; "ファイル選択"; end  #inuzuka
+    def msg_folderselect_button; "フォルダ選択"; end  #inuzuka
+    def msg_explain_button; "選択したファイルへのリンクをテキストボックスのカーソルの位置に挿入します.";end #inuzuka
+    def msg_add_title_selecting_files;"ファイル選択のとき見出しを付ける。";end #inuzuka
   end
 end

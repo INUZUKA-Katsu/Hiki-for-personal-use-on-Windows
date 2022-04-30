@@ -16,13 +16,13 @@ def comment(cols = 60, style = 0)
   @comment_num += 1
   name = @user || ''
   <<EOS
-<form action="#{@conf.cgi_name}" method="post">
+<form action="#{@conf.cgi_name}" method="post" onsubmit="return false;">
   <div>
     #{comment_name_label}:
     <input type="text" name="name" value="#{name}" size="10">
     #{comment_comment_label}:
     <input type="text" name="msg" size="#{cols}">
-    <input type="submit" name="comment" value="#{comment_post_label}">
+    <input type="submit" name="comment" value="#{comment_post_label}" onclick="comment_post(this.form)">
     <input type="hidden" name="comment_no" value="#{@comment_num}">
     <input type="hidden" name="c" value="plugin">
     <input type="hidden" name="p" value="#{h(@page)}">
@@ -56,7 +56,7 @@ def comment_post
     if /^\{\{r?comment.*\}\}/ =~ line && flag == false
       if count == comment_no
         content << line if style == 1
-        content << "*#{format_date(Time.now)} #{name} : #{msg}\n"
+        content << "*<span class=\"blue\">#{format_date(Time.now)[0..-4]}</span> #{name} : #{msg}\n"
         content << line if style == 0
         flag = true
       else

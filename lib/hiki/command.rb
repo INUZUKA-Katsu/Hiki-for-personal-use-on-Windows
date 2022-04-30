@@ -8,6 +8,7 @@ require "hiki/aliaswiki"
 require "hiki/cookie"
 require "hiki/session"
 require "hiki/filter"
+require "win32ole"
 
 module Hiki
   class PermissionError < StandardError; end
@@ -158,6 +159,20 @@ module Hiki
         data[:body].gsub!(Regexp.new(Regexp.quote(Plugin::TOC_STRING)), data[:toc])
       end
 
+      #以下8行追加 inuzuka <br>や<a name>,<>の実体参照などが使えるように
+      if data[:body]
+        re1 = /(?=[^']|^)&lt;(|\/)(br|b|strong|del|u)&gt;(?=[^']|$)/
+        re2 = /&amp;#165;/
+        re3 = /&amp;(lt;|gt;)/
+        re4 = /(?=[^']|^)&lt;a name=(.*?)&gt;(&lt;\/a&gt;)?(?=[^'])/
+        re5 = /&amp;yen;/
+        data[:body].gsub!(re1, '<\1\2>')
+        data[:body].gsub!(re2, '&#165;')
+        data[:body].gsub!(re3, '&¥1')
+        data[:body].gsub!(re4, '<a name=\1></a>')
+        data[:body].gsub!(re5, '&yen;')
+      end
+
       @page = Hiki::Page.new(@request, @conf)
       @page.command  = @cmd
       @page.template = @conf.read_template(@cmd)
@@ -189,6 +204,8 @@ module Hiki
     end
 
     def cmd_view
+      $xl.quit() if defined? $xl and $xl.ole_respond_to?(:quit) #inuzuka
+      
       unless @db.exist?(@p)
         @cmd = "create"
         return cmd_create(@conf.msg_page_not_exist)
@@ -235,7 +252,11 @@ module Hiki
 
     def hilighten(str, keywords)
       hilighted = str.dup
+
+      #**** 次の１行追加 inuzuka *****
+      x1=0
       keywords.each do |key|
+        x1+=1 #**** inuzuka *****
         re = Regexp.new("(" << Regexp.escape(key) << ")", Regexp::IGNORECASE)
         hilighted.gsub!(/([^<]*)(<[^>]*>)?/) {
           body, tag = $1, $2
@@ -243,6 +264,13 @@ module Hiki
             %Q[<em class="hilight">#{$1}</em>]
           } << (tag || "")
         }
+        #*********以下５行追加 inuzuka**********************
+        x2=0 
+        escaped_key = escape(key)
+        hilighted.gsub!(/(<tr><td>)(.*(#{key}|#{escaped_key}))|(.*(#{key}|#{escaped_key}).*)/i) do |s|
+          x2+=1
+          "#{$1}<a name=#{x1}-#{x2}></a>#{$2}#{$4}"
+        end
       end
       hilighted
     end
@@ -304,6 +332,10 @@ module Hiki
     end
 
     def cmd_edit(page, text=nil, msg=nil, d_title=nil)
+      #2行追加 inuzuka
+      $xl = WIN32OLE.new('Excel.Application')
+      $xl.visible = false
+
       page_title = d_title ? h(d_title) : @plugin.page_name(page)
 
       save_button = @cmd == "edit" ? "" : nil
@@ -386,6 +418,7 @@ module Hiki
 
     def cmd_save(page, text, md5hex, update_timestamp = true)
       raise SessionError if @plugin.session_id && @plugin.session_id != @request.params["session_id"]
+      $xl.quit() if defined? $xl and $xl.ole_respond_to?(:quit) #inuzuka
       subject = ""
       if text.empty?
         @db.delete(page)
@@ -430,7 +463,11 @@ module Hiki
       if word && word.size > 0
         total, l = @db.search(word)
         if @conf.hilight_keys
-          l.collect! {|p| @plugin.make_anchor("#{@conf.cgi_name}?cmd=view&p=#{escape(p[0])}&key=#{escape(word.split.join('+'))}", @plugin.page_name(p[0])) + " - #{p[1]}"}
+          #次の1行を追加(各ヒット箇所にリンクを付加) inuzuka
+          l.collect! {|p| [p[0],p[1].gsub(/#\d+\-\d+(?=\])/,@plugin.make_anchor("#{@conf.cgi_name}?cmd=view&p=#{escape(p[0])}&key=#{escape(word.split.join('+'))}"+'\&', '\&'))] }
+          #改行をタグを付加 inuzuka
+          #l.collect! {|p| @plugin.make_anchor("#{@conf.cgi_name}?cmd=view&p=#{escape(p[0])}&key=#{escape(word.split.join('+'))}", @plugin.page_name(p[0])) + " - #{p[1]}"}
+          l.collect! {|p| @plugin.make_anchor("#{@conf.cgi_name}?cmd=view&p=#{escape(p[0])}&key=#{escape(word.split.join('+'))}", @plugin.page_name(p[0]),"p-name") + "<br>　#{p[1]}"}
         else
           l.collect! {|p| @plugin.hiki_anchor(escape(p[0]), @plugin.page_name(p[0])) + " - #{p[1]}"}
         end

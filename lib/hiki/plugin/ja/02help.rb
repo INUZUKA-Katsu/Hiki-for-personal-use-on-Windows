@@ -92,7 +92,7 @@ def help_columns_label
 end
 
 def help_plugin_label
-   "プラグイン"
+   "bbsプラグイン"  #inuzuka "プラグイン"から変更
 end
 
 def help_br_label

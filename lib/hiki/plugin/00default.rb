@@ -152,6 +152,312 @@ def hiki_header
   <title>#{title}</title>
   <link rel="stylesheet" type="text/css" href="#{h(base_css_url)}" media="all">
   <link rel="stylesheet" type="text/css" href="#{h(theme_url)}" media="all">
+  <script type="text/javascript">  //inuzuka 2020.10.17
+    var addEvent=(function(){
+      if(window.addEventListener){
+        return function(element, type, handler){
+          element.addEventListener(type, handler, false);
+          return element;
+        };
+      }else if(window.attachEvent){
+        return function(element, type, handler){
+          element.attachEvent('on' + type, handler);
+          return element;
+        };
+      }else{
+        return function(element){
+          return element;
+        };
+      }
+    })();
+    window.onload = function(){
+      setEventListener();
+      plugin_auto_add_title();
+      if(typeof PageLoad === "function"){
+        PageLoad();
+      }
+    }
+
+    function plugin_auto_add_title(){
+      let elm = document.getElementById("plugin_auto_add_title");
+      if(elm!=null){
+        let target = document.getElementsByName("save")[0];
+        let chk    = document.createElement('input');
+        chk.type  = "checkbox";
+        chk.name = "add_title";
+        chk.checked = "checked";
+        let text  = document.createTextNode("ファイル選択のとき見出しを付ける。");
+        text.value = "ファイル選択のとき見出しを付ける。";
+        target.parentNode.insertBefore(chk,target.nextElementSibling); 
+        target.parentNode.insertBefore(text,chk.nextElementSibling);
+      }
+    }
+
+    function setEventListener(){
+      var isIE = is_IE();
+      var elms=document.getElementsByTagName("a");
+      var i;
+      var url;
+      for (i = 0; i < elms.length; i++) {
+        if(elms[i].className=='mylink'){
+          url = elms[i].href ;
+          if(url.match("dl.cgi")){
+            if( is_folder(url) ){
+            //フォルダへのリンクは全てAjaxで処理する。
+              var onHandle = function(e){
+                preventEvent(e);
+                var url = get_url(e)
+                if( is_another_pc() && is_local_folder(url) ){
+                  alert("サーバー以外のPCではこのフォルダを開くことはできません。");
+                }else if(isIE){
+                  var folder = decodeURI(url.replace(/.*\\.cgi\\?(\\/)*/,"file://"));
+                  try {
+                    window.open(folder, "_self");
+                  } catch (e) {
+                    //アクセス権がないと拒否された場合はIE以外のブラウザと同じ処理.
+                    if (e.number == -2147024891) {
+                      clearTimeout(mytimer);
+                      open_url(url);
+                    }
+                  }
+                }else{
+                  clearTimeout(mytimer);
+                  open_url(url);
+                }
+              };
+              addEvent(elms[i], "click", onHandle);
+            }else if(is_server_pc() && ! is_html_file(url)){
+              //サーバーPCではファイル(htmlを除く)へのリンクもAjaxで処理する。
+              var onHandle = function(e){
+                preventEvent(e);
+                var url = get_url(e)
+                clearTimeout(mytimer);
+                open_url(url);
+              };
+              addEvent(elms[i], "click", onHandle);
+            }
+          }
+          var mytimer;
+          addEvent(elms[i], "mouseover", function (e){
+            var url = get_url(e)
+            mytimer = setTimeout(function(){
+              if( is_server_pc() || is_file(url) || is_shared_folder(url) ){
+                check_url_existence(url);
+              }else{
+                alert("サーバー以外のPCではこのフォルダを開くことはできません。");
+              }
+            },2000);
+          });
+          addEvent(elms[i], "mouseout", function (){
+            clearTimeout(mytimer);
+          });
+        }
+      }
+    }
+    function open_url(url){
+      var request = new XMLHttpRequest();
+      request.onreadystatechange = function () {
+        if (request.readyState == 4 && request.status == 200) {
+          res = request.responseText;
+          if(/directly open on the server side|history.back\\(\\)/.test(res)){
+            console.log("do nothing");
+
+          }else if(ans=res.match(/Did not find folder: (.*)/)){
+            alert("フォルダが見つかりません. \\n\\n　不明なフォルダ："+ans[1]);
+          
+          }else if(ans=res.match(/Did not find file: (.*)/)){
+            alert("ファイルが見つかりません. \\n\\n　不明なファイル："+ans[1]);
+
+          }else if(/This dir includes many files/.test(res)){
+            mes="フォルダ内のファイル数が多いのでしばらく時間がかかります。このままお待ちください。"
+            document.body.innerHTML=mes;
+            window.location.href = url.replace("dl.cgi","dir.cgi");
+            //postForm(url.replace("dl.cgi","dir.cgi"), {"head": get_head()});
+
+          }else if(/This dir does not include so many files/.test(res)){
+            window.location.href = url.replace("dl.cgi","dir.cgi");
+            //postForm(url.replace("dl.cgi","dir.cgi"), {"head": get_head()});
+
+          }else{
+            document.body.innerHTML = res;
+            setEventListener();
+          }
+        }
+      };
+      request.open('GET', url + ((/\\?/).test(url) ? "&" : "?") + (new Date()).getTime());
+      request.send(null);
+    }
+    function check_url_existence(url){
+      url=url.replace("dl.cgi?","exist.cgi?");
+      //console.log("リンク切れになっていないか確認します.");
+      var request = new XMLHttpRequest();
+      request.onreadystatechange = function () {
+        if (request.readyState == 4 && request.status == 200) {
+          //別途explorerを開き、ブラウザは画面遷移せずそのままを維持する.
+          res = request.responseText;
+          if(res=="true"){
+            //console.log("リンクは有効です.");
+          }else{
+            var bloken_link = res.replace("bloken link: ","")
+            alert(bloken_link+" はリンク切れです。\\n上記のファイル名又はフォルダ名に「?」が含まれているときは、ファイル名に「‣」などの機種依存文字を使用していることが「リンク切れ」と表示される原因です。その場合はエクスプローラで元のファイルの名称を修正し、それからリンクを修正してください。"); 
+          }
+        }
+      };
+      request.open('GET', url + ((/\\?/).test(url) ? "&" : "?") + (new Date()).getTime() );
+      request.send(null);
+    }
+    function get_url(event){
+      if(window.addEventListener){
+        return event.target.href;
+      }else{
+        return event.srcElement.href;
+      }
+    }
+    function preventEvent(event){
+      if(event.preventDefault){
+        event.preventDefault();
+      }else{
+        event.returnValue=false;
+      }
+    }
+    function is_server_pc(){
+      return location.hostname=="localhost";
+    }
+    function is_another_pc(){
+      return is_server_pc()==false;
+    }
+    function is_file(url){
+      return /\\.\\w+$/.test(url);
+    }
+    function is_html_file(url){
+      return /\\.html$/.test(url);
+    }
+    function is_folder(url){
+      return is_file(url)==false;
+    }
+    function is_local_folder(url){
+      //We treat drive L: as shared folder.
+      return /dl\\.cgi\\?(\\\\|\\/)*([a-km-z]:|mydoc|documents)/.test(url.toLowerCase());
+    }
+    function is_shared_folder(url){
+      return is_local_folder(url)==false;
+    }
+    function is_IE(){
+      var uAgent = window.navigator.userAgent.toLowerCase();
+      return /msie|trident/.test(uAgent);
+    }
+    function get_head(){
+      var h = document.head;
+      var s = document.getElementsByTagName('style')[0];
+      if(s!=undefined){h.removeChild(s);}
+      var str = h.innerHTML;
+      return "<head>\\n"+str+"\\n</head>";
+    }
+    function postForm(path,params){
+      var form = document.createElement('form');
+      form.setAttribute('method', 'post');
+      form.setAttribute('action', path);
+      for(var key in params){
+        if(params.hasOwnProperty(key)){
+          var hiddenField = document.createElement('input');
+          hiddenField.setAttribute('type', 'hidden');
+          hiddenField.setAttribute('name', key);
+          hiddenField.setAttribute('value', params[key]);
+          form.appendChild(hiddenField);
+        }
+      }
+      document.body.appendChild(form);
+      form.submit();
+    }
+    function bbs_post(form){
+      var bbs_num = form.bbs_num.value;
+      var date = "" ;
+      var param = {} ;
+      var elms = form.getElementsByTagName("input")
+      var ary = [];
+      var val = "" ;
+      for (i = 0; i < elms.length; i++) {
+        if(form.elements[i].name=="date"){
+          if(form.elements[i].checked){
+            ary[i] = "date=on" ;
+            date = 'on';
+          }else{
+            ary[i] = "date=off" ;
+            date = 'off'
+          }
+        }else{
+          val = form.elements[i].value ;
+          if(form.elements[i].name=="msg"){
+            val = encodeURIComponent(val) ;
+          }
+          ary[i] = form.elements[i].name + "=" + val ;
+        }
+      }
+      var post_data = ary.join("&")
+      var page = form.elements['p'].value;
+      var request = new XMLHttpRequest();
+      request.onreadystatechange = function () {
+        if (request.readyState == 4 && request.status == 200) {
+          setTimeout(bbs_get(page,bbs_num,date) ,1000 );
+        }
+      }
+      request.open('POST', "./");
+      request.setRequestHeader('content-type' , 'application/x-www-form-urlencoded;charset=UTF-8');
+      request.send(post_data);
+    }
+    function bbs_get(p,bbs_num,date){
+      var request = new XMLHttpRequest();
+      request.onreadystatechange = function () {
+        if (request.readyState == 4 && request.status == 200) {
+            var res = request.responseText;
+            if(date=='off'){
+              var s = '(.*)( checked\\\\="checked")([\\\\s\\\\S]*? name\\\\="bbs_num" value\\\\="'+bbs_num+'")';
+              var reg = new RegExp( s );
+              var a = res.match(reg);
+              res = res.replace(reg,'$1$3');
+            }
+            var html_str = res.replace(/<DOCTYPE.*?>/m,'');
+            document.documentElement.innerHTML = html_str;
+        }
+      }
+      request.open('GET', "/?"+encodeURI(p));
+      request.setRequestHeader('content-type' , 'application/x-www-form-urlencoded;charset=UTF-8');
+      request.send(null);
+    }
+    function comment_post(form){
+      var param = {} ;
+      var elms = form.getElementsByTagName("input")
+      var ary = [];
+      for (i = 0; i < elms.length; i++) {
+        ary[i] = form.elements[i].name + "=" + form.elements[i].value ;
+      }
+      var post_data = ary.join("&")
+      var page = form.elements['p'].value;
+      var request = new XMLHttpRequest();
+      request.onreadystatechange = function () {
+        if (request.readyState == 4 && request.status == 200) {
+          setTimeout(comment_get(page) ,1000 );
+        }
+      }
+      request.open('POST', "./");
+      request.setRequestHeader('content-type' , 'application/x-www-form-urlencoded;charset=UTF-8');
+      request.send(post_data);
+    }
+
+    function comment_get(p){
+      var request = new XMLHttpRequest();
+      request.onreadystatechange = function () {
+        if (request.readyState == 4 && request.status == 200) {
+            var res = request.responseText;
+            var html_str = res.replace(/<DOCTYPE.*?>/m,'');
+            document.documentElement.innerHTML = html_str;
+        }
+      }
+      request.open('GET', "/?"+encodeURI(p));
+      request.setRequestHeader('content-type' , 'application/x-www-form-urlencoded;charset=UTF-8');
+      request.send(null);
+    }
+  </script>
 EOS
   s << <<EOS if @command != "view"
   <meta name="ROBOTS" content="NOINDEX,NOFOLLOW">
