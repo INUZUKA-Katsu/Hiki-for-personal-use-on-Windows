@@ -10,7 +10,14 @@
 #   ディレクトリを指定します。
 #   このディレクトリの「全ファイル」と「全ディレクトリ」は、WWWサーバの
 #   権限で書き込めるパーミッションにしておく必要があります。
-@data_path       = 'path to data'
+@data_path       = 'c:/hiki/data'
+
+# 資料ファイル、イメージファイルの保存フォルダ（inuzuka付加）
+@siryo_path  =  @data_path + '/siryo'
+@image_path  =  @data_path + '/image'
+
+#共有フォルダへのリンクを他PCから開くとき、ファイルのサイズ、更新時を表示する上限のフォルダ内ファイル数（inuzuka付加）
+@maxnum_to_disp_file_detail = 50
 
 # メールサーバ名【オプション】
 #   メールサーバ名を指定します。@mail_on_updateがtrueの場合に有効です。
