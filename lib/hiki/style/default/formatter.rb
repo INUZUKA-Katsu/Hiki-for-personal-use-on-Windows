@@ -32,7 +32,7 @@ module Hiki
         res = s.scan(/【start】.*?【end】/m)
         if res.size>0
           str = res.join("\n\n")
-          File.write("C:\hiki\keika#{num.to_s}.txt",str)
+          File.write("#{Dir.pwd}/keika#{num.to_s}.txt",str)
         end
       end
 
