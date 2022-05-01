@@ -77,5 +77,9 @@ module Hiki
     def msg_last_modified; "Zuletzt ge&auml;ndert"; end
     def msg_keyword; "Stichworte"; end
     def msg_reference; "Referenzen"; end
+    def msg_fileselect_button; "Auswahl der Datei"; end
+    def msg_folderselect_button; "Auswahl des Ordners"; end
+    def msg_explain_button; "Fügt eine Verknüpfung zur ausgewählten Datei an der Cursorposition im Textfeld ein."; end
+    def msg_add_title_selecting_files; "Fügen Sie eine Überschrift hinzu, wenn Sie eine Datei auswählen."; end
   end
 end

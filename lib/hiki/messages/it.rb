@@ -77,5 +77,9 @@ module Hiki
     def msg_last_modified; "Ultima modifica"; end
     def msg_keyword; "Parola chiave"; end
     def msg_reference; "Referenze"; end
+    def msg_fileselect_button; "Selezione dei file"; end
+    def msg_folderselect_button; "Selezione della cartella"; end
+    def msg_explain_button; "Inserisce un collegamento al file selezionato nella posizione del cursore nella casella di testo."; end
+    def msg_add_title_selecting_files; "Allegare un'intestazione quando si seleziona un file."; end
   end
 end

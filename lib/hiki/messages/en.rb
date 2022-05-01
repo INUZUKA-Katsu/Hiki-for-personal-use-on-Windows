@@ -78,5 +78,10 @@ module Hiki
     def msg_keyword; "Keyword(s)"; end
     def msg_reference; "References"; end
     def msg_input_is_spam; "Input is treated as SPAM."; end
+    def msg_fileselect_button; "File Selection"; end  #inuzuka
+    def msg_folderselect_button; "Folder Selection"; end  #inuzuka
+    def msg_explain_button; "Inserts a link to the selected file at the cursor position in the text box.";end #inuzuka
+    def msg_add_title_selecting_files; "Adds a heading when selecting a file.";end #inuzuka
+
   end
 end
