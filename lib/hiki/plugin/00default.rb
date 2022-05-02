@@ -172,7 +172,11 @@ def hiki_header
     })();
     window.onload = function(){
       setEventListener();
-      plugin_auto_add_title();
+      if(location.hostname=="localhost"||location.hostname=="127.0.0.1"){
+        plugin_auto_add_title();
+      }else{
+        hidden_dialog_bottun();
+      }
       if(typeof PageLoad === "function"){
         PageLoad();
       }
@@ -191,6 +195,12 @@ def hiki_header
         target.parentNode.insertBefore(chk,target.nextElementSibling); 
         target.parentNode.insertBefore(text,chk.nextElementSibling);
       }
+    }
+
+    function hidden_dialog_bottun(){
+      document.getElementById("dl1").style.display = 'none';
+      document.getElementById("dl2").style.display = 'none';
+      document.getElementById("tip").style.display = 'none';
     }
 
     function setEventListener(){

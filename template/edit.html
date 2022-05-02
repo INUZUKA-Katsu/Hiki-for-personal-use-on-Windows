@@ -22,8 +22,8 @@
     <p>
       <% if @contents[:preview_button] %><input type="submit" name="preview" value="<%=@conf.msg_preview_button%>"><% end %>
       <!--inuzuka-->
-      <input type="button" value="<%= @conf.msg_fileselect_button %>" onclick="open_dialog(1)">
-      <input type="button" value="<%= @conf.msg_folderselect_button %>" onclick="open_dialog(2)">      
+      <input type="button" id="dl1" value="<%= @conf.msg_fileselect_button %>" onclick="open_dialog(1)">
+      <input type="button" id="dl2" value="<%= @conf.msg_folderselect_button %>" onclick="open_dialog(2)">      
       <input type="hidden" id="status" value="">
       <% if @contents[:button] %><input type="submit" name="save" value="<%=@conf.msg_save%>"><% end %>
       <input type="checkbox" name="update_timestamp" value="on"<%=@contents[:update_timestamp]%>><%=@conf.msg_update_timestamp%>
