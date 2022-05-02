@@ -66,3 +66,18 @@ What is “Hiki for Personal use on Windows(Hiki-PoW)” ?
 	Set objCMD = CreateObject("WScript.Shell")
 	objCMD.Run RubyPath & “¥bin¥rackup.bat”, 0, false
 ~~~
+
+###### How to allow other PCs to view the page
+- If you want to allow access from other PCs in your network, change the last line of `start_hiki.vbs` to `objCMD.Run RubyPath & "³³.bat -o 0.0.0.0", 0, false`.
+- When you start Hiki-PoW with this setting, the web server will accept access from other PCs, but as it is, it will be blocked at the application level of Hiki-PoW and you will not be able to open Hiki-PoW pages from other PCs.
+- By registering the words "public" or "limited public" as keywords on a Hiki-PoW page, the page can be opened from other PCs. To register a keyword, open the edit page screen by clicking the Edit button, enter the keyword in the text box at the bottom for keyword entry, and click the Save button.
+- When a link to a local file on a public or limited public page is clicked from another PC, the file data is returned to the browser. This is the same as downloading a file from the Internet.
+- Links to local folders or Windows shared folders cannot be opened from other PCs, even on public or limited public pages.
+- On public pages, you can open the edit screen from other PCs, and the file selection and folder selection buttons are disabled, but you can perform other editing operations.
+
+- ネットワーク内の他のPCからのアクセスを許可したい場合は、`start_hiki.vbs`の最後の行を、`objCMD.Run RubyPath & “¥bin¥rackup.bat -o 0.0.0.0”, 0, false`としてください。
+- この設定でHiki-PoWを起動すると、Webサーバーが他のPCからのアクセスを受け付けるようになりますが、そのままではHiki-PoWのアプリケーションレベルでブロックされ、他のPCからHiki-PoWのページを開くことはできません。
+- Hiki-PoWのページのキーワードに「公開」又は「限定公開」のワードを登録することで、他のPCからそのページを開くことができるようになります。キーワードの登録は、編集ボタンでページの編集画面を開き、一番下にあるキーワード入力用のテキストボックスにキーワードを入力し、保存ボタンをクリックすることにより行います。
+- 公開又は限定公開のページのローカルファイルへのリンクを他のPCからクリックしたときは、ファイルデータがブラウザに返されます。インターネットでファイルをダウンロードする場合と同じです。
+- 公開又は限定公開のページでも、ローカルフォルダ又はWindows共有フォルダへのリンクを他PCから開くことはできません。
+- 公開ページは、他のPCから編集画面を開くことができ、ファイル選択ボタンとフォルダ選択ボタンは無効ですが、それ以外の編集操作を行うことができます。
