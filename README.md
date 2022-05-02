@@ -28,18 +28,22 @@ What is “Hiki for Personal use on Windows(Hiki-PoW)” ?
 2. Download the complete set of files of HIKI-PoW as a Zip file, and extract them to the `C:¥hiki` on your local PC. 
 3. Open `C:¥hiki¥Gemfile` with Notepad, etc., and replace `3.1.2` in the second line of `ruby '3.1.2'` with the version of ruby you installed, and save it. 
 4. Open a command prompt window and type the following. The necessary gem will be installed.
+~~~
 	C:¥Users¥xxxxxxx\>cd¥
 	C:¥\>cd hiki
 	C:¥hiki\>bundle install
+~~~
 5. Open `C:¥hiki¥hikiconf.rb` with Notepad, etc., and configure the folder to save the data, etc. as appropriate. It works fine with the default values.
 
 1. Rubyをインストールする。
 2. Hiki-PoWのファイル一式をZipファイルでダウンロードし、ローカルPCの`C:¥hiki`フォルダに展開する。
 3. `C:¥hiki¥Gemfile`をメモ帳等で開き、2行目の`ruby ‘3.1.2’`の`3.1.2`の部分をインストールしたrubyのバージョンに書き換えて保存する。
 4. コマンドプロンプト画面を開き、次のように入力する。必要なgemがインストールされる。
+~~~
 	C:¥Users¥xxxxxxx\>cd¥
 	C:¥\>cd hiki
 	C:¥hiki\>bundle install
+~~~
 5. `C:¥hiki¥hikiconf.rb`をメモ帳等で開き、データを保存するフォルダなどについて適宜設定を行う。既定値のままで支障なく動きます。
 
 ### For environments where access to the Internet environment is restricted
@@ -48,14 +52,17 @@ What is “Hiki for Personal use on Windows(Hiki-PoW)” ?
 # Usage
 - Double-click `C:¥hiki¥start_hiki.vbs` to start. Type `localhost:9292` in the address bar of your browser and if the initial screen appears, you have succeeded.
 - If you set up by copying the folder to a PC with restricted access to the Internet, add the folder containing ruby.exe (ex.`C:¥Ruby31-x64¥bin`) to the Windows environment variable PATH, or open `C:¥ hiki¥start_hiki.vbs` with Notepad and rewrite it as follows (The "C:¥Ruby31-x64" in the second line depends on the version of Ruby. Check it with Explorer and modify it accordingly.)
+~~~
 	Dim objCMD,RubyPath
 	RubyPath = “C:¥Ruby31-x64”
 	Set objCMD = CreateObject("WScript.Shell")
 	objCMD.Run RubyPath & “¥bin¥rackup.bat”, 0, false
-
+~~~
 - `C:¥hiki¥start_hiki.vbs`をダブルクリックすれば起動します。ブラウザのアドレスバーに`localhost:9292`と入力して初期画面が表示されれば成功です。
 - インターネット環境へのアクセスが制限されている環境にあるPCにフォルダをコピーすることによってセットアップした場合は、Windowsの環境変数のPATHにruby.exeのあるフォルダ(ex.`C:¥Ruby31-x64¥bin`)を追加するか、又は`C:¥hiki¥start_hiki.vbs`をメモ帳で開き、次のように書き換えてください。(2行目の“C:¥Ruby31-x64”の部分はRubyのバージョンによって異なります。エクスプローラで確認して適宜修正してください。)
+~~~
 	Dim objCMD,RubyPath
 	RubyPath = “C:¥Ruby31-x64”
 	Set objCMD = CreateObject("WScript.Shell")
 	objCMD.Run RubyPath & “¥bin¥rackup.bat”, 0, false
+~~~
