@@ -172,7 +172,7 @@ module Hiki
         #CGI.escapeでは半角スペースが '+' に変換される。
         #URI.escapeでは半角スペースが '%20' に変換される。
         # '+'だとIEではリンク切れになる。
-        CGI.escape(str).gsub(/%3F/,'?').gsub(/%3A/,':').gsub(/%5C/,'/').gsub(/%2F/,'/').gsub('+','%20')
+        CGI.escape(str).gsub(/%3F/,'?').gsub(/%3A/,':').gsub(/%5C/,'/').gsub(/%2F/,'/').gsub('+','%20').gsub(/Q%26amp%3BA/,'Q&A')
         #URI.escape(str).gsub(/%3F/,'?').gsub(/%3A/,':').gsub(/%5C/,'/').gsub(/%2F/,'/')
       end
 
