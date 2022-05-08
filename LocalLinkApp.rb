@@ -53,9 +53,10 @@ class LocalLinkApp
     filename = File.basename(full_path).to_s
     full_path = __dir__+"/"+filename if File.dirname(full_path).size==1
     header   = Hash.new
-    #p_req_heder(req)
+    #p_req_heder(req) # envの中身を列挙する.
+
     #編集画面でファイル選択ボタン・フォルダ選択ボタンをクリックしたときの処理
-    if ["/selectfile.cgi","/selectfolder.cgi"].include? req.script_name and req.ip.to_s=="127.0.0.1"
+    if ["/selectfile.cgi","/selectfolder.cgi"].include? req.script_name and ["localhost","127.0.0.1"].include? env["SERVER_NAME"]
           if req.script_name == "/selectfile.cgi"
              dialog_title = "Select Files"
           else
