@@ -53,10 +53,9 @@ class LocalLinkApp
     filename = File.basename(full_path).to_s
     full_path = __dir__+"/"+filename if File.dirname(full_path).size==1
     header   = Hash.new
-    #p_req_heder(req) # envの中身を列挙する.
-
+    #p_req_heder(req)
     #編集画面でファイル選択ボタン・フォルダ選択ボタンをクリックしたときの処理
-    if ["/selectfile.cgi","/selectfolder.cgi"].include? req.script_name and ["localhost","127.0.0.1"].include? env["SERVER_NAME"]
+    if ["/selectfile.cgi","/selectfolder.cgi"].include? req.script_name
           if req.script_name == "/selectfile.cgi"
              dialog_title = "Select Files"
           else
@@ -79,11 +78,11 @@ class LocalLinkApp
           
           #戻り待ちのカウントダウン
           sec = 0
-          wait_sec = 30
+          wait_sec = 90
           while sec < wait_sec and thread.status!=false
-            p thread.status
+            p "thread.status => " + thread.status.to_s
             sleep(0.1)
-            p sec
+            #p sec
             sec += 0.1
             if sec >= wait_sec
               #ダイアログを強制的に閉じる。
@@ -250,6 +249,10 @@ class LocalLinkApp
     sh.run %Q|"#{path}" , 3, false|
     filename = File.basename(path)
     #set_new_window_foreground(ary,filename)
+
+    puts "set_foreground_window_by_filename(filename, :maximize)"
+    puts filename
+
     set_foreground_window_by_filename(filename, :maximize)
     header["Content-Type"] = "text/html;charset=utf-8"
     response = %Q|<html><script type="text/javascript">history.back()</script></html>|
@@ -286,24 +289,50 @@ class LocalLinkApp
   end
 
   def open_dir_by_explorer(path)
+
+    def get_hwnd_of_exproler(path)
+      explrs = Hash.new
+      app=WIN32OLE.new('Shell.Application')
+      app.windows.each do |w|
+        if w.name.toutf8=='エクスプローラー'
+          explrs[w.hwnd] = w.LocationURL.sub(/file:\/\/\/(?=[a-zA-Z]:)|file:(?!\/\/\/[a-zA-Z]:)/,"")
+        end
+      end
+      hwnd=0
+      explrs.to_a.each do |d|
+        if d[1].gsub(/\//,'\\').downcase==path.downcase
+          hwnd = d[0]
+        end
+      end
+      hwnd
+    end
+
     header = Hash.new
-    #explorer_title = File.basename(path)
-    explorer_title = path.match(/.*(\\|\/)(.*)/)[2]
-    hwnd = find_window(explorer_title)
+    hwnd = get_hwnd_of_exproler(path)
     if hwnd>0
       set_foreground_window(hwnd,:restore)
       thread = nil
     else
       sh=WIN32OLE.new("WScript.Shell")
       sh.run "C:/Windows/Explorer.exe #{path} , vbNormalFocus, false"
-      thread = Thread.new{set_foreground_window_by_filename(explorer_title,:normal)}
+      thread = Thread.new{
+        i=0
+        while i<100 and hwnd==0
+          p i
+          hwnd = get_hwnd_of_exproler(path)
+          set_foreground_window(hwnd,:restore)
+          i+=1
+          sleep 0.1
+        end
+      }
       thread.join
+      p :thread_out
     end
     header["Content-Type"] = "text/plain;charset=utf-8"
     response = "directly open on the server side"
     [header,response]
   end
-   
+
   def open_dir_on_browser(path, called_script, post_data=nil)
     header = Hash.new
     if called_script=="/dl.cgi"
@@ -446,34 +475,58 @@ class LocalLinkApp
   end
 
   #Thunderbirdで受信したファイル名に不正な文字U+FFFDが入ることがあるので除去する.
-  #(FileDialogで取得したファイル名では"?"に置き換えられている場合がある。)
+  #(FileDialogで取得したファイル名では"?"に置き換えられている.)
   #また、iPadから送信したファイル名の濁音・半濁音が独立文字となっている場合にリンクエラーになるので、通常の濁音・半濁音付き文字に置き換える。
   def correct_file_name(file_names)
-    file_names.map!{|file| file.toutf8}
+      file_names.map!{|file| file.encoding==Encoding::UTF_8 ? file : file.toutf8}
+      #保存ファイルのファイル名を変更
+      file_names.map! do |file|
+        if File.basename(file).match(/\?|#{0xFFFD.chr("utf-8")}|#{8215.chr("utf-8")}|[\u3099-\u309C]/)
+          from = Dir.glob(file.gsub(/\?|#{0xFFFD.chr("utf-8")}|#{8215.chr("utf-8")}|[\u3099-\u309C]/,'*').gsub(/\\/,'/'))[0]
+          to    = file.gsub(/\?|#{0xFFFD.chr("utf-8")}/,'').
+                  gsub(/#{8215.chr("utf-8")}/,'_').
+                  gsub(/(.)(\u3099|\u309B)/) do |l|
+                     $1.tr('か-とは-ほカ-トハ-ホウ', 'が-どば-ぼガ-ドバ-ボヴ')
+                   end.gsub(/(.)(\u309A|\u309C)/) do |l|
+                     $1.tr('は-ほハ-ホ', 'ぱ-ぽパ-ポ')
+                   end
+          File.rename(from, to)
+          to
+        else
+          file
+        end
+      end
+      file_names
+  end
 
-    #保存フォルダ内のファイル名を変更
-    dir = File.dirname(file_names[0].gsub(/\\/,"/"))
-    Dir.glob(dir+"/*").each do |file|
-      file2  = file.gsub(/#{0xFFFD.chr("utf-8")}/,"")
-      File.rename(file, file2) unless file==file2
-      file3  = file2.gsub(/(.)[゛ﾞ]/){|w|
-                 $1.tr('か-とは-ほカ-トハ-ホウ', 'が-どば-ぼガ-ドバ-ボヴ')
-               }.gsub(/(.)[゜ﾟ]/){|w|
-                 $1.tr('は-ほハ-ホ', 'ぱ-ぽパ-ポ')
-               }
-      File.rename(file2, file3) unless file2==file3
-    end
-
-    #FileDialogで取得したファイル名を変更
-    file_names.map! do |file|
-      file2 = file.gsub(/\?|#{0xFFFD.chr("utf-8")}/,"")
-      file3 = file2.gsub(/(.)[゛ﾞ]/){|w|
-                  $1.tr('か-とは-ほカ-トハ-ホウ', 'が-どば-ぼガ-ドバ-ボヴ')
-                }.gsub(/(.)[゜ﾟ]/){|w|
-                  $1.tr('は-ほハ-ホ', 'ぱ-ぽパ-ポ')
-                }
-      file3
-    end
+  def correct_file_name_old(file_names)
+      file_names.map!{|file| file.toutf8}
+      #保存ファイルのファイル名を変更
+      file_names.map! do |file|
+        if File.basename(file).match(/\?|#{0xFFFD.chr("utf-8")}|#{8215.chr("utf-8")}/)
+          from = Dir.glob(file.gsub(/\?|#{0xFFFD.chr("utf-8")}|#{8215.chr("utf-8")}/,'*').gsub(/\\/,'/'))[0]
+          to    = file.gsub(/\?|#{0xFFFD.chr("utf-8")}/,'').gsub(/#{8215.chr("utf-8")}/,'_')
+          File.rename(from, to)
+          to
+        else
+          file
+        end
+      end
+      file_names.map! do |file|
+        if File.basename(file).match(/[\u3099-\u309C]/)
+          from = Dir.glob(file.gsub(/[\u3099-\u309C]/, '*').gsub(/\\/,'/'))[0]
+          to    = file.gsub(/(.)(\u3099|\u309B)/) do |l|
+                     $1.tr('か-とは-ほカ-トハ-ホウ', 'が-どば-ぼガ-ドバ-ボヴ')
+                   end.gsub(/(.)(\u309A|\u309C)/) do |l|
+                     $1.tr('は-ほハ-ホ', 'ぱ-ぽパ-ポ')
+                   end
+          File.rename(from, to)
+          to
+        else
+          file
+        end
+      end
+      file_names
   end
 
   def p_req_heder(req)
