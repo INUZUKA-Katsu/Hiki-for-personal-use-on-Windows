@@ -2,7 +2,7 @@
 
 require 'fiddle/import'
 require 'fiddle/types'
-require 'timeout'
+require 'timeout' 
 require 'kconv'
 
 
@@ -24,6 +24,9 @@ module WIN32API
   extern 'int GetWindowText(HWND,char*,int)'
   extern 'int GetWindowTextLength(HWND)'
   extern 'int SetForegroundWindow(HWND)'
+  extern 'BOOL IsIconic(HWND)'
+  extern 'BOOL OpenIcon(HWND)'
+  extern 'int GetWindowPlacement(HWND,void*)'
   extern 'int ShowWindow(HWND, int)'
   SW_SHOWNORMAL = 1 #Windowを起動したとき使う.
   SW_MAXIMIZE = 3
@@ -32,11 +35,19 @@ module WIN32API
   SW_SHOWDEFAULT = 10
   extern 'DWORD GetWindowThreadProcessId(HWND,UINT)'
   extern 'BOOL BringWindowToTop(HWND)'
+  extern 'int SetWindowPos(HWND, int, int, int, int, int, int)'
+  SWP_NOMOVE_or_SWP_NOSIZE = 3
+  HWND_TOPMOST = -1
+  HWND_NOTOPMOST = -2
   extern 'BOOL AttachThreadInput(UINT,UINT,BOOL)'
   extern 'BOOL PostMessage(HWND,UINT,int,int)'
   extern 'int EnumWindows(void*, int)'
   extern 'void keybd_event(BYTE, BYTE, DWORD, ULONG)'  # sendkey
+  KEYEVENTF_EXTENDEDKEY = 1
+  KEYEVENTF_KEYUP = 2
   BM_CLICK = 0xF5
+  VK_LWIN = 0x5B
+  VK_UP = 0x26
   extern 'int MessageBox(HWND, char*, char*, UINT)'
   MB_OK                = 0x00000000  # OK
   MB_OKCANCEL          = 0x00000001  # OK, キャンセル
@@ -111,6 +122,25 @@ module WIN32API
   end
 end
 
+def Set最前面表示(hwnd)
+  if WIN32API.IsIconic(hwnd)==1
+    WIN32API.OpenIcon(hwnd)
+  end
+  WIN32API.SetWindowPos(hwnd, WIN32API::HWND_TOPMOST, 0, 0, 0, 0, WIN32API::SWP_NOMOVE_or_SWP_NOSIZE)
+end
+
+def Clear最前面表示(hwnd)
+  WIN32API.SetWindowPos(hwnd, WIN32API::HWND_NOTOPMOST, 0, 0, 0, 0, WIN32API::SWP_NOMOVE_or_SWP_NOSIZE)
+end
+
+def window_minimized?(hwnd)
+  if hwnd != 0
+    WIN32API.IsIconic(hwnd)
+  else
+    nil
+  end
+end
+
 def get_hwnd_of_2nd_window
   #最前面から2番目のウインドウのhwndを返す。
   top_hwnd  = get_foreground_window
@@ -126,6 +156,7 @@ def get_hwnd_of_2nd_window
   end
   res
 end
+
 def get_hwnd_of_all_windows
   res=[]
   cb = Fiddle::Closure::BlockCaller.new(Fiddle::TYPE_INT, [Fiddle::TYPE_INT]) do |hwnd|
@@ -138,6 +169,7 @@ def get_hwnd_of_all_windows
   WIN32API.EnumWindows(func,0)
   res
 end
+
 def is_visible(hwnd)
   if WIN32API.IsWindowVisible(hwnd) ==WIN32API::TRUE  and
        WIN32API.GetWindowTextLength(hwnd)>0
@@ -146,32 +178,33 @@ def is_visible(hwnd)
     return false
   end
 end
+
 def get_window_title(hwnd)
   buf_len = WIN32API.GetWindowTextLength(hwnd)
   str = ' ' * (buf_len+1)
   result = WIN32API.GetWindowText(hwnd, str, str.length)
   str.force_encoding("sjis").encode("utf-8")
 end
+
 def get_foreground_window
   hwnd = WIN32API.GetForegroundWindow().to_i
   hwnd
 end
+
 def find_window(title_str)
   hwnd = WIN32API.FindWindow(nil,title_str.tosjis)
-#  puts "WIN32API => " + hwnd.to_s
+  #puts "WIN32API => " + hwnd.to_s
   if hwnd and hwnd>0
     return hwnd
   else
     title_reg = Regexp.escape(title_str.toutf8)
-#    p "title_reg"
-#    puts title_reg
+    #p "title_reg"
+    #puts title_reg
     hwnds = get_hwnd_of_all_windows
     hwnds.each do |hwnd|
-      title = get_window_title(hwnd).strip
-#      puts title
+      title = get_window_title(hwnd).strip.toutf8
+      #puts title
       if title and title!="" and title.match(title_reg)
-        p :true
-        p hwnd
         return hwnd
       else
 #        p :false
@@ -180,19 +213,35 @@ def find_window(title_str)
   end
   return 0
 end
+
 def find_window_ex(parent_hwnd,title_str)
   WIN32API.FindWindowEx(parent_hwnd,0,nil,title_str)
 end
+
 def btn_click(parent_hwnd,btn_caption)
   hwnd = find_window_ex(parent_hwnd,btn_caption.encode('sjis'))
   WIN32API.PostMessage(hwnd, WIN32API::BM_CLICK, 0, 0)
 end
+
 def set_foreground_window(hwnd,state=nil)
   def done?(hwnd)
     get_foreground_window == hwnd
   end
-  WIN32API.SetForegroundWindow(hwnd)
+  #最小化しているときは元に戻す.
+  if WIN32API.IsIconic(hwnd)==1
+    p :OpenIcon
+    WIN32API.OpenIcon(hwnd)
+  end
   unless done?(hwnd)
+    p :SetForegroundWindow
+    WIN32API.SetForegroundWindow(hwnd)
+  end
+  unless done?(hwnd)
+    p :SetWindowPos
+    WIN32API.SetWindowPos(hwnd, WIN32API::HWND_TOPMOST, 0, 0, 0, 0, WIN32API::SWP_NOMOVE_or_SWP_NOSIZE)
+  end
+  unless done?(hwnd)
+    p :BringWindowToTop
     hwnd_pid = WIN32API.GetWindowThreadProcessId(hwnd,0)
     foreground_pid = WIN32API.GetWindowThreadProcessId(get_foreground_window,0)
     if foreground_pid != hwnd_pid
@@ -201,7 +250,19 @@ def set_foreground_window(hwnd,state=nil)
       WIN32API.AttachThreadInput(hwnd_pid,foreground_pid,0)
     end
   end
-  WIN32API.ShowWindow(hwnd,win_state(state)) if state != nil
+  p "done?(hwnd):"+done?(hwnd).to_s
+  #指定されたウインドウ状態とする。
+  sleep 0.2
+  if state==:maximize
+    p "key_win_up: "+state.to_s
+    key_win_up
+  end
+  if state!=nil
+    p "ShowWindow: "+state.to_s
+    WIN32API.ShowWindow(hwnd,win_state(state))
+    sleep 0.1
+    WIN32API.ShowWindow(hwnd,win_state(state))
+  end
   return done?(hwnd)
 end
 
@@ -214,27 +275,29 @@ def set_foreground_window_by_filename(filename,state=nil)
     #p "cnt => "+cnt.to_s
     if is_word_document
       target_hwnd_pre = find_window("起動しています")
-      p "target_hwnd_pre => "+target_hwnd_pre.to_s
+      #p "target_hwnd_pre => "+target_hwnd_pre.to_s
       if target_hwnd_pre>0
         puts "起動しています => " + target_hwnd_pre.to_s
         set_foreground_window(target_hwnd_pre, state)
       end
     end
-    target_hwnd = find_window(filename) 
+    target_hwnd = find_window(filename)
     if target_hwnd==0
       target_hwnd = find_window("パスワード")
       state = win_state(:default) if target_hwnd > 0
     end
     if target_hwnd > 0
-      puts filename + " => " + target_hwnd.to_s
+      #puts filename + " => " + target_hwnd.to_s
       return set_foreground_window(target_hwnd, state)
     else
-      p "cnt => "+cnt.to_s
-      break if cnt>100
+      #p "cnt => "+cnt.to_s
+      #break if cnt>500
+      break if cnt>20
     end
   }
   false
 end
+
 def set_new_window_foreground(wins,filename="not_file")
   wins = wins.select{|hwnd| is_visible(hwnd)}
   current_wins = []
@@ -252,7 +315,7 @@ def set_new_window_foreground(wins,filename="not_file")
     end
     target_hwnd = find_window(filename)
     if target_hwnd>0
-      puts filename + " => " + target_hwnd.to_s
+      #puts filename + " => " + target_hwnd.to_s
       return set_foreground_window(target_hwnd,:restore)
     else
       new_wins = current_wins - wins
@@ -266,6 +329,7 @@ def set_new_window_foreground(wins,filename="not_file")
   }
   false
 end
+
 def win_state(state)
   case state
   when :normal   ; 1
@@ -275,6 +339,7 @@ def win_state(state)
   else           ;10
   end
 end
+
 def get_hwnd_by_pid(pid)
   wins = get_hwnd_of_all_window
   wins.each do |hwnd|
@@ -292,6 +357,18 @@ def key_alt_f4
   WIN32API.keybd_event(0x73,0,0,0)     #F4 key_press
   WIN32API.keybd_event(0x12,0,0x002,0) #alt key_up
   WIN32API.keybd_event(0x73,0,0x002,0) #F4 key_up
+end
+
+def key_win_up
+  #アクティブウインドウの最大化
+  WIN32API.keybd_event(WIN32API::VK_LWIN,0,0,0)
+  WIN32API.keybd_event(WIN32API::VK_UP,0,0,0)
+  WIN32API.keybd_event(WIN32API::VK_LWIN,0,2,0)
+  WIN32API.keybd_event(WIN32API::VK_UP,0,2,0)
+end
+
+def popup(message)
+  WIN32OLE.new("WScript.Shell").Popup(message)
 end
 
 def msgbox(message,title,disp)
@@ -335,8 +412,12 @@ def set_foreground_dialog(dialog_title)
   #ファイル/フォルダ選択ダイアログのウインドウがなくなったら終了する。
   while find_window(dialog_title)>0
     if hiki == get_foreground_window
-      set_foreground_window(dialog_hwnd)
+      #set_foreground_window(dialog_hwnd)
     end
     sleep(0.2)
   end
 end
+
+
+
+
